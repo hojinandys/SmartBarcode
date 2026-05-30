@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Barcode</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="step-0">
+    <div id="top-bar">
+        <div class="brand">SMART BARCODE</div>
+        <div id="date-navigation">
+            <button id="prev-date-btn" class="nav-btn">◀</button>
+            <div id="date-indicator">오늘 (2026-05-30)</div>
+            <button id="next-date-btn" class="nav-btn">▶</button>
+        </div>
+        <button id="back-to-spin-btn" class="hidden">↻ 다시 고르기</button>
+        <div id="step-indicator">다이얼을 돌려 날짜를 고르세요</div>
+    </div>
+
+    <main id="app-container">
+        <div id="guide-overlay">
+            <p id="guide-text">바코드를 클릭하면 해석이 시작됩니다.</p>
+            <h1 id="core-concept-text">“당신은 오늘 무엇에 시간을 소비했나요?”</h1>
+        </div>
+
+        <div id="canvas-wrapper">
+            <canvas id="barcode-canvas"></canvas>
+        </div>
+
+        <section id="result-dashboard" class="hidden">
+            <div class="receipt-wrapper">
+                <div class="receipt">
+                    <div class="receipt-header">
+                        <h2>DIGITAL RECEIPT</h2>
+                        <p id="receipt-date">2026-05-30</p>
+                        <p id="receipt-time">총 사용시간: <span id="receipt-total-time">0</span>분</p>
+                    </div>
+                    
+                    <div class="receipt-divider"></div>
+                    
+                    <div class="receipt-body" id="receipt-items">
+                        </div>
+                    
+                    <div class="receipt-divider"></div>
+                    
+                    <div class="receipt-total">
+                        <span>TOTAL</span>
+                        <span id="receipt-total-cost">₩0</span>
+                    </div>
+                    
+                    <div class="receipt-divider"></div>
+                    
+                    <div class="receipt-footer">
+                        <div id="receipt-symbol-icon">🎮</div>
+                        <p id="receipt-interpretation">해석 문구</p>
+                        <div class="receipt-barcode-img">|| | ||| || || | ||| |</div>
+                        <p class="receipt-thanks">THANK YOU FOR YOUR TIME</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
