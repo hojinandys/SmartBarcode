@@ -19,14 +19,17 @@ const DATES_CONFIG = [
 let currentStep = 0; 
 let currentDateIdx = 0; 
 let generatedData = []; 
-let isAnimating = false; 
 
+// 애니메이션 변수들
 let rotationAngle = Math.PI / 2;
 let targetRotation = Math.PI / 2;
 let currentScale = 0.95; 
 let targetScale = 0.95;
 
-let flattenProgress = 0; // 바코드 평면화(Unwrap) 애니메이션 진행도 (0~1)
+let flattenProgress = 0; // 바코드 펼치기
+let heightProgress = 0;  // 바코드 높낮이 애니메이션
+
+let focusedCategory = null; // 특정 카테고리 강조 기능 변수
 
 let isDragging = false;
 let wasDragged = false;
@@ -65,6 +68,17 @@ function generateBarcodeGroup() {
     return visualBars;
 }
 
+// 00시부터 24시까지 타임라인 렌더링
+function initTimeline() {
+    const timeline = document.getElementById('timeline-labels');
+    timeline.innerHTML = '';
+    for(let i = 0; i <= 24; i++) {
+        const span = document.createElement('span');
+        span.innerText = i.toString().padStart(2, '0');
+        timeline.appendChild(span);
+    }
+}
+
 function initCanvas() {
     const dpr = window.devicePixelRatio || 1;
     canvas.width = canvas.clientWidth * dpr;
@@ -95,8 +109,6 @@ function drawSolidPuck() {
 
     if (drawDial) {
         ctx.globalAlpha = dialAlpha;
-
-        // 원통 전면부 (Top-down 형태)
         ctx.beginPath();
         ctx.moveTo(-radiusX, -puckHeight/2);
         ctx.ellipse(0, -puckHeight/2, radiusX, radiusY, 0, Math.PI, 0, true); 
@@ -153,14 +165,26 @@ function drawSolidPuck() {
 
         if (finalAlpha <= 0.01) return;
 
+        // 카테고리 집중(Focus) 기능 처리
         let barColor = isLight ? '#111111' : (isFocusedDay && currentStep >= 2 ? bar.category.color : '#050505');
-        let barH = puckHeight * 0.65; 
         
+        if (focusedCategory && isFocusedDay && currentStep >= 2) {
+            if (bar.category.name !== focusedCategory) {
+                // 선택되지 않은 카테고리는 흑백 처리
+                barColor = isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.05)';
+            }
+        }
+
+        // 3단계 진입 시 천천히 높낮이 변환하는 애니메이션
+        const baseH = puckHeight * 0.65;
+        let targetH = baseH;
         if (isFocusedDay && currentStep >= 3) {
             const heightRatio = 0.6 + (bar.stimulation / 100) * 0.8; 
-            barH = puckHeight * 0.65 * heightRatio;
+            targetH = baseH * heightRatio;
         }
         
+        // heightProgress에 따라 자연스럽게 보간
+        const barH = isFocusedDay ? lerp(baseH, targetH, heightProgress) : baseH;
         const yTop = yCenterOffset - barH/2;
         
         ctx.fillStyle = barColor;
@@ -171,14 +195,13 @@ function drawSolidPuck() {
     if (drawDial) {
         ctx.globalAlpha = dialAlpha;
 
-        // [핵심 변경] 다이얼 윗면(뚜껑) 색상을 방사형 그라데이션으로 자연스럽게 수정
         ctx.beginPath();
         ctx.ellipse(0, -puckHeight/2, radiusX, radiusY, 0, 0, Math.PI * 2);
         
         const topGrad = ctx.createRadialGradient(0, -puckHeight/2, radiusX * 0.1, 0, -puckHeight/2, radiusX);
         if (isLight) {
-            topGrad.addColorStop(0, '#ffffff'); // 중심은 밝게
-            topGrad.addColorStop(1, '#e4e7f0'); // 가장자리는 어둡게 (원통과 대비)
+            topGrad.addColorStop(0, '#ffffff'); 
+            topGrad.addColorStop(1, '#e4e7f0'); 
         } else {
             topGrad.addColorStop(0, '#2c3045'); 
             topGrad.addColorStop(1, '#1a1c29'); 
@@ -190,7 +213,6 @@ function drawSolidPuck() {
         ctx.strokeStyle = isLight ? 'rgba(200,200,200,0.5)' : 'rgba(255,255,255,0.1)';
         ctx.stroke();
 
-        // 다이얼 정면 3D 명암 오버레이
         ctx.beginPath();
         ctx.moveTo(-radiusX, -puckHeight/2);
         ctx.ellipse(0, -puckHeight/2, radiusX, radiusY, 0, Math.PI, 0, true);
@@ -246,6 +268,7 @@ function calculateMetrics() {
     
     const listContainer = document.getElementById('receipt-items');
     listContainer.innerHTML = '';
+    
     Object.keys(catAnalysis).forEach(name => {
         const item = catAnalysis[name];
         if (item.minutes > 0) {
@@ -260,6 +283,20 @@ function calculateMetrics() {
                 </div>
                 <div>${item.config.char} ${individualCost.toLocaleString()}</div>
             `;
+            
+            // 영수증 카테고리 클릭 시 하이라이트 이벤트
+            div.onclick = (e) => {
+                e.stopPropagation();
+                if (focusedCategory === name) {
+                    focusedCategory = null;
+                    document.querySelectorAll('.receipt-item').forEach(el => el.classList.remove('active'));
+                } else {
+                    focusedCategory = name;
+                    document.querySelectorAll('.receipt-item').forEach(el => el.classList.remove('active'));
+                    div.classList.add('active');
+                }
+            };
+            
             listContainer.appendChild(div);
         }
     });
@@ -267,13 +304,22 @@ function calculateMetrics() {
 
 function updateStepUI() {
     document.body.className = `step-${currentStep}`;
-    const stepTexts = ["다이얼을 돌려 날짜를 고르세요", "1단계: 데이터 스캔 중...", "2단계: 카테고리 색상 해석", "3단계: 디지털 자극도 결합", "4단계: 디지털 소비 영수증 발급 완료"];
+    
+    const stepTexts = [
+        "다이얼을 돌려 날짜를 고르세요", 
+        "1단계: 원본 바코드 확인", 
+        "2단계: 카테고리 색상 해석", 
+        "3단계: 디지털 자극도 결합", 
+        "4단계: 디지털 소비 영수증 발급 완료"
+    ];
     document.getElementById('step-indicator').innerText = stepTexts[currentStep];
 
     const guideText = document.getElementById('guide-text');
     if (currentStep === 0) guideText.innerText = "바코드를 클릭하면 해석이 시작됩니다.";
-    else if (currentStep < 4) guideText.innerText = "데이터 해석 프로세스가 진행 중입니다...";
-    else guideText.innerText = "오늘의 디지털 소비 리포트입니다.";
+    else if (currentStep === 1) guideText.innerText = "한 번 더 클릭하면 카테고리 색상이 입혀집니다.";
+    else if (currentStep === 2) guideText.innerText = "한 번 더 클릭하면 디지털 자극도가 높이로 반영됩니다.";
+    else if (currentStep === 3) guideText.innerText = "한 번 더 클릭하면 최종 영수증이 발급됩니다.";
+    else guideText.innerText = "영수증의 항목을 클릭하여 집중 분석해보세요.";
 
     if (currentStep === 0) {
         document.getElementById('date-navigation').classList.remove('hidden');
@@ -291,26 +337,17 @@ function updateStepUI() {
     } else {
         dashboard.classList.remove('visible');
         dashboard.classList.add('hidden');
+        focusedCategory = null; // 초기화
     }
-}
-
-function runAutoStepSequence() {
-    if (currentStep >= 4) {
-        isAnimating = false;
-        return;
-    }
-    isAnimating = true;
-    setTimeout(() => {
-        if (currentStep === 0) return; 
-        currentStep++;
-        updateStepUI();
-        runAutoStepSequence();
-    }, 1200);
 }
 
 function snapToCurrentDate() {
     targetRotation = Math.PI / 2 - generatedData[currentDateIdx].localAngle;
-    document.getElementById('date-indicator').innerText = DATES_CONFIG[currentDateIdx].label;
+    
+    // 네비게이션 및 플로팅 날짜 동기화
+    const dateLabel = DATES_CONFIG[currentDateIdx].label;
+    document.getElementById('date-indicator').innerText = dateLabel;
+    document.getElementById('floating-date-display').innerText = dateLabel;
 }
 
 function changeDateView(direction) {
@@ -321,9 +358,10 @@ function changeDateView(direction) {
 
 function resetToCarousel() {
     currentStep = 0;
-    isAnimating = false; 
     targetScale = 0.95; 
     flattenProgress = 0; 
+    heightProgress = 0;
+    focusedCategory = null;
     updateStepUI();
 }
 
@@ -362,13 +400,13 @@ function setupEvents() {
             snapToCurrentDate();
         }
 
+        // 수동 클릭 진행 (자동 시퀀스 제거됨)
         if (!wasDragged && e.target.closest('#canvas-wrapper')) {
-            if (currentStep === 0 && !isAnimating) {
-                currentStep = 1;
-                targetScale = 1.05; 
+            if (currentStep < 4) {
+                currentStep++;
+                if (currentStep === 1) targetScale = 1.05; 
                 snapToCurrentDate();
                 updateStepUI();
-                runAutoStepSequence();
             }
         }
     });
@@ -402,10 +440,11 @@ function setupEvents() {
         snapToCurrentDate();
 
         if (!wasDragged && e.target.closest('#canvas-wrapper')) {
-            if (currentStep === 0 && !isAnimating) {
-                currentStep = 1; targetScale = 1.05;
-                snapToCurrentDate(); updateStepUI();
-                runAutoStepSequence();
+            if (currentStep < 4) {
+                currentStep++;
+                if (currentStep === 1) targetScale = 1.05; 
+                snapToCurrentDate();
+                updateStepUI();
             }
         }
     });
@@ -417,14 +456,21 @@ function animationLoop() {
     rotationAngle += (targetRotation - rotationAngle) * 0.15;
     currentScale += (targetScale - currentScale) * 0.15;
     
+    // 바코드 전개(Unwrap) 애니메이션 연동
     const targetFlatten = currentStep >= 1 ? 1.0 : 0.0;
     flattenProgress += (targetFlatten - flattenProgress) * 0.08;
+
+    // 3단계부터 적용되는 천천히 변하는 높이 애니메이션
+    const targetHeightProgress = currentStep >= 3 ? 1.0 : 0.0;
+    heightProgress += (targetHeightProgress - heightProgress) * 0.05;
 
     drawSolidPuck();
     requestAnimationFrame(animationLoop);
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+    initTimeline(); // 00~24 타임라인 세팅
+    
     DATES_CONFIG.forEach((cfg, idx) => { 
         generatedData.push({
             dateIdx: idx, localAngle: cfg.localAngle, bars: generateBarcodeGroup()

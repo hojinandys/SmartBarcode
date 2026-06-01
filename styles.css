@@ -41,8 +41,11 @@ body.step-2 #top-bar, body.step-3 #top-bar, body.step-4 #top-bar {
 
 #app-container {
     min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding-top: 80px;
+    padding-top: 80px; transition: all 0.8s ease;
 }
+
+/* 4단계 레이아웃 겹침 해결: 영수증이 들어갈 자리를 위해 위로 정렬 */
+body.step-4 #app-container { justify-content: flex-start; padding-top: 100px; }
 
 #guide-overlay { text-align: center; margin-bottom: 20px; z-index: 10; transition: opacity 0.5s; }
 #guide-text { font-size: 0.95rem; opacity: 0.6; margin-bottom: 8px; animation: pulse 2s infinite alternate; }
@@ -53,33 +56,49 @@ body.step-4 #core-concept-text { display: none; }
 #canvas-wrapper {
     position: relative; width: 100%; max-width: 1200px; height: 500px;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    cursor: grab; transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+    cursor: grab; transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1);
 }
 #canvas-wrapper:active { cursor: grabbing; }
 #barcode-canvas { width: 100%; height: 500px; }
 
-/* 영수증 모드일 때 평면 바코드를 위로 올림 */
-body.step-4 #canvas-wrapper { transform: scale(0.65) translateY(-250px); }
+/* 4단계 겹침 방지: 캔버스 컨테이너 높이를 줄이고 위로 당김 */
+body.step-4 #canvas-wrapper { transform: scale(0.7) translateY(-30px); margin-bottom: -150px; }
 
+/* 처음 화면 플로팅 날짜 */
+#floating-date-display {
+    position: absolute; top: 15%; left: 50%; transform: translateX(-50%);
+    font-size: 1.8rem; font-weight: 700; color: #111;
+    opacity: 0; transition: opacity 0.5s; pointer-events: none; letter-spacing: 2px;
+}
+body.step-0 #floating-date-display { opacity: 1; }
+
+/* 1시간 단위 타임라인 */
+#timeline-labels {
+    position: absolute; bottom: 15%; width: 84%; /* 바코드 너비와 동일 */
+    display: flex; justify-content: space-between;
+    font-family: 'Orbitron', sans-serif; font-size: 0.7rem; font-weight: bold;
+    opacity: 0; transition: opacity 0.8s ease, color 0.8s ease; pointer-events: none;
+}
+body.step-1 #timeline-labels { opacity: 0.7; color: #000; }
+body.step-2 #timeline-labels, body.step-3 #timeline-labels { opacity: 0.7; color: #fff; }
+body.step-4 #timeline-labels { opacity: 0.4; color: #fff; }
+
+/* 영수증 UI 디자인 */
 #result-dashboard {
     width: 100%; display: flex; justify-content: center;
     opacity: 0; transform: translateY(50px); transition: all 0.8s ease;
-    position: absolute; top: 35%; 
+    z-index: 20; position: relative; margin-top: 20px; /* 겹침 완벽 해결 */
 }
 #result-dashboard.visible { opacity: 1; transform: translateY(0); }
 .hidden { display: none !important; }
 
-.receipt-wrapper { width: 100%; max-width: 380px; padding: 0 20px; }
+.receipt-wrapper { width: 100%; max-width: 400px; padding: 0 20px; margin-bottom: 50px; }
 .receipt {
-    background: #fdfbf7; 
-    color: #1a1a1a;
+    background: #fdfbf7; color: #1a1a1a;
     font-family: 'Courier New', Courier, monospace;
-    padding: 30px 25px 40px;
-    position: relative;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
-    border-radius: 2px;
+    padding: 30px 25px 40px; position: relative;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6); border-radius: 2px;
 }
-
 .receipt::after {
     content: ""; position: absolute; bottom: -10px; left: 0; width: 100%; height: 10px;
     background: linear-gradient(135deg, #fdfbf7 25%, transparent 25%), 
@@ -93,12 +112,19 @@ body.step-4 #canvas-wrapper { transform: scale(0.65) translateY(-250px); }
 
 .receipt-divider { border-bottom: 2px dashed #b5b5b5; margin: 15px 0; }
 
-.receipt-body { display: flex; flex-direction: column; gap: 8px; min-height: 120px; }
-.receipt-item { display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: bold; }
+.receipt-body { display: flex; flex-direction: column; gap: 4px; min-height: 120px; }
+
+/* 카테고리 클릭 하이라이트 아이템 */
+.receipt-item { 
+    display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: bold; 
+    padding: 8px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;
+}
+.receipt-item:hover { background: rgba(0,0,0,0.05); }
+.receipt-item.active { background: rgba(0,0,0,0.1); outline: 1.5px solid #888; }
 .item-name { display: flex; gap: 8px; align-items: center; }
 .item-time { font-size: 0.8rem; color: #666; font-weight: normal; margin-left: 5px;}
 
-.receipt-total { display: flex; justify-content: space-between; font-size: 1.4rem; font-weight: bold; align-items: center; }
+.receipt-total { display: flex; justify-content: space-between; font-size: 1.4rem; font-weight: bold; align-items: center; padding: 0 10px; }
 #receipt-total-cost { font-family: 'Orbitron', sans-serif; font-size: 1.6rem; }
 
 .receipt-footer { text-align: center; margin-top: 10px; }
