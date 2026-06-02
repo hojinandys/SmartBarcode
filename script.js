@@ -20,16 +20,15 @@ let currentStep = 0;
 let currentDateIdx = 0; 
 let generatedData = []; 
 
-// 애니메이션 변수들
 let rotationAngle = Math.PI / 2;
 let targetRotation = Math.PI / 2;
 let currentScale = 0.95; 
 let targetScale = 0.95;
 
-let flattenProgress = 0; // 바코드 펼치기
-let heightProgress = 0;  // 바코드 높낮이 애니메이션
+let flattenProgress = 0; 
+let heightProgress = 0;  
 
-let focusedCategory = null; // 특정 카테고리 강조 기능 변수
+let focusedCategory = null; 
 
 let isDragging = false;
 let wasDragged = false;
@@ -68,7 +67,6 @@ function generateBarcodeGroup() {
     return visualBars;
 }
 
-// 00시부터 24시까지 타임라인 렌더링
 function initTimeline() {
     const timeline = document.getElementById('timeline-labels');
     timeline.innerHTML = '';
@@ -165,17 +163,14 @@ function drawSolidPuck() {
 
         if (finalAlpha <= 0.01) return;
 
-        // 카테고리 집중(Focus) 기능 처리
         let barColor = isLight ? '#111111' : (isFocusedDay && currentStep >= 2 ? bar.category.color : '#050505');
         
         if (focusedCategory && isFocusedDay && currentStep >= 2) {
             if (bar.category.name !== focusedCategory) {
-                // 선택되지 않은 카테고리는 흑백 처리
                 barColor = isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.05)';
             }
         }
 
-        // 3단계 진입 시 천천히 높낮이 변환하는 애니메이션
         const baseH = puckHeight * 0.65;
         let targetH = baseH;
         if (isFocusedDay && currentStep >= 3) {
@@ -183,7 +178,6 @@ function drawSolidPuck() {
             targetH = baseH * heightRatio;
         }
         
-        // heightProgress에 따라 자연스럽게 보간
         const barH = isFocusedDay ? lerp(baseH, targetH, heightProgress) : baseH;
         const yTop = yCenterOffset - barH/2;
         
@@ -191,6 +185,36 @@ function drawSolidPuck() {
         ctx.globalAlpha = finalAlpha;
         ctx.fillRect(xPos - barWidth/2, yTop, barWidth, barH);
     });
+
+    // 🔴 1단계 진입 시 작동하는 붉은색 레이저 스캔 애니메이션
+    if (currentStep === 1 && flattenProgress > 0.8) {
+        const scanWidth = w * 0.85;
+        const scanHeight = puckHeight * 0.65;
+        
+        // 시간에 따라 레이저 선이 위아래로 움직이도록 (Speed: 0.003)
+        const time = Date.now() * 0.003;
+        const laserY = Math.sin(time) * (scanHeight / 2 - 5);
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(-scanWidth / 2, laserY);
+        ctx.lineTo(scanWidth / 2, laserY);
+        
+        // 붉은색 아우라 (Glow)
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(255, 59, 48, 0.8)'; // 애플 레드 컬러
+        ctx.shadowColor = 'rgba(255, 59, 48, 1)';
+        ctx.shadowBlur = 20;
+        ctx.stroke();
+        
+        // 중심의 하얀색 강렬한 빛
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.shadowBlur = 10;
+        ctx.stroke();
+        
+        ctx.restore();
+    }
 
     if (drawDial) {
         ctx.globalAlpha = dialAlpha;
@@ -284,7 +308,6 @@ function calculateMetrics() {
                 <div>${item.config.char} ${individualCost.toLocaleString()}</div>
             `;
             
-            // 영수증 카테고리 클릭 시 하이라이트 이벤트
             div.onclick = (e) => {
                 e.stopPropagation();
                 if (focusedCategory === name) {
@@ -337,14 +360,13 @@ function updateStepUI() {
     } else {
         dashboard.classList.remove('visible');
         dashboard.classList.add('hidden');
-        focusedCategory = null; // 초기화
+        focusedCategory = null; 
     }
 }
 
 function snapToCurrentDate() {
     targetRotation = Math.PI / 2 - generatedData[currentDateIdx].localAngle;
     
-    // 네비게이션 및 플로팅 날짜 동기화
     const dateLabel = DATES_CONFIG[currentDateIdx].label;
     document.getElementById('date-indicator').innerText = dateLabel;
     document.getElementById('floating-date-display').innerText = dateLabel;
@@ -400,7 +422,6 @@ function setupEvents() {
             snapToCurrentDate();
         }
 
-        // 수동 클릭 진행 (자동 시퀀스 제거됨)
         if (!wasDragged && e.target.closest('#canvas-wrapper')) {
             if (currentStep < 4) {
                 currentStep++;
@@ -456,11 +477,9 @@ function animationLoop() {
     rotationAngle += (targetRotation - rotationAngle) * 0.15;
     currentScale += (targetScale - currentScale) * 0.15;
     
-    // 바코드 전개(Unwrap) 애니메이션 연동
     const targetFlatten = currentStep >= 1 ? 1.0 : 0.0;
     flattenProgress += (targetFlatten - flattenProgress) * 0.08;
 
-    // 3단계부터 적용되는 천천히 변하는 높이 애니메이션
     const targetHeightProgress = currentStep >= 3 ? 1.0 : 0.0;
     heightProgress += (targetHeightProgress - heightProgress) * 0.05;
 
@@ -469,7 +488,7 @@ function animationLoop() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    initTimeline(); // 00~24 타임라인 세팅
+    initTimeline(); 
     
     DATES_CONFIG.forEach((cfg, idx) => { 
         generatedData.push({
